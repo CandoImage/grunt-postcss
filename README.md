@@ -1,4 +1,5 @@
 # grunt-postcss
+[![NPM Version](https://img.shields.io/npm/v/grunt-postcss.svg?style=flat)](https://npmjs.org/package/grunt-postcss)
 [![Build Status](https://travis-ci.org/nDmitry/grunt-postcss.png?branch=master)](https://travis-ci.org/nDmitry/grunt-postcss)
 [![Dependency Status](https://david-dm.org/nDmitry/grunt-postcss.png)](https://david-dm.org/nDmitry/grunt-postcss)
 
@@ -93,6 +94,18 @@ options: {
 }
 ```
 You can also specify a path where you want the file to be saved.
+
+#### options.failOnError
+Type: `Boolean`
+Default value: `false`
+
+Set it to `true` if you want grunt to exit with an error on detecting a warning or error.
+
+#### options.writeDest
+Type: `Boolean`
+Default value: `true`
+
+Set it to `false` if you do not want the destination files to be written. This does not affect the processing of the `map` and `diff` options.
 
 #### options.syntax, options.parser, options.stringifier
 

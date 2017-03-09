@@ -5,10 +5,7 @@ var postcss = require('postcss');
 var diff = require('diff');
 var chalk = require('chalk');
 
-require('es6-promise').polyfill();
-
 module.exports = function(grunt) {
-
     var options;
     var processor;
 
@@ -87,23 +84,21 @@ module.exports = function(grunt) {
             processors: [],
             map: false,
             diff: false,
-            safe: false
+            safe: false,
+            failOnError: false,
+            writeDest: true
         });
 
         var tally = {
             sheets: 0,
             maps: 0,
-            diffs: 0
+            diffs: 0,
+            issues: 0
         };
 
         processor = postcss(options.processors);
 
         var done = this.async();
-
-        if (!this.files.length) {
-            return done();
-        }
-
         var tasks = [];
 
         this.files.forEach(function(f) {
@@ -123,17 +118,24 @@ module.exports = function(grunt) {
                 return done();
             }
 
-            tasks = src.map(function(filepath) {
+            Array.prototype.push.apply(tasks, src.map(function(filepath) {
                 var dest = f.dest || filepath;
                 var input = grunt.file.read(filepath);
 
                 return process(input, filepath, dest).then(function(result) {
-                    result.warnings().forEach(function(msg) {
+                    var warnings = result.warnings();
+
+                    tally.issues += warnings.length;
+
+                    warnings.forEach(function(msg) {
                         grunt.log.error(msg.toString());
                     });
 
-                    grunt.file.write(dest, result.css);
-                    log('File ' + chalk.cyan(dest) + ' created.');
+                    if (options.writeDest) {
+                        grunt.file.write(dest, result.css);
+                        log('File ' + chalk.cyan(dest) + ' created.');
+                    }
+
                     tally.sheets += 1;
 
                     if (result.map) {
@@ -145,6 +147,7 @@ module.exports = function(grunt) {
 
                         grunt.file.write(mapDest, result.map.toString());
                         log('File ' + chalk.cyan(dest + '.map') + ' created (source map).');
+
                         tally.maps += 1;
                     }
 
@@ -153,15 +156,20 @@ module.exports = function(grunt) {
 
                         grunt.file.write(diffPath, diff.createPatch(dest, input, result.css));
                         log('File ' + chalk.cyan(diffPath) + ' created (diff).');
+
                         tally.diffs += 1;
                     }
                 });
-            });
+            }));
         });
 
         Promise.all(tasks).then(function() {
             if (tally.sheets) {
-                grunt.log.ok(tally.sheets + ' ' + 'processed ' + grunt.util.pluralize(tally.sheets, 'stylesheet/stylesheets') + ' created.');
+                if (options.writeDest) {
+                    grunt.log.ok(tally.sheets + ' processed ' + grunt.util.pluralize(tally.sheets, 'stylesheet/stylesheets') + ' created.');
+                } else {
+                    grunt.log.ok(tally.sheets + ' ' + grunt.util.pluralize(tally.sheets, 'stylesheet/stylesheets') + ' processed, no files written.');
+                }
             }
 
             if (tally.maps) {
@@ -170,6 +178,14 @@ module.exports = function(grunt) {
 
             if (tally.diffs) {
                 grunt.log.ok(tally.diffs + ' ' + grunt.util.pluralize(tally.diffs, 'diff/diffs') + ' created.');
+            }
+
+            if (tally.issues) {
+                grunt.log.error(tally.issues + ' ' + grunt.util.pluralize(tally.issues, 'issue/issues') + ' found.');
+
+                if (options.failOnError) {
+                    return done(false);
+                }
             }
 
             done();
